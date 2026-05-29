@@ -1,0 +1,8 @@
+export const MATCH_THRESHOLDS = {
+  HIGH_CONFIDENCE: 0.85,
+  MEDIUM_CONFIDENCE: 0.65,
+  LOW_CONFIDENCE: 0.45,
+};
+
+export const MAX_MATCHES_RETURNED = 5;
+export const ALERT_COOLDOWN_MINUTES = parseInt(process.env.ALERT_COOLDOWN_MINUTES || '30', 10);

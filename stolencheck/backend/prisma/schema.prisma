@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String           @id @default(cuid())
+  email               String           @unique
+  passwordHash        String
+  role                Role             @default(BUYER)
+  phone               String?
+  name                String
+  expoPushToken       String?
+  createdAt           DateTime         @default(now())
+  items               StolenItem[]
+  verifications       VerificationLog[]
+  assignedPhotoAlerts PhotoScanAlert[] @relation("OfficerAlerts")
+  scannedAlerts       PhotoScanAlert[] @relation("ScannedByAlerts")
+}
+
+enum Role { VICTIM BUYER OFFICER ADMIN }
+
+model StolenItem {
+  id             String           @id @default(cuid())
+  scid           String           @unique
+  userId         String
+  user           User             @relation(fields: [userId], references: [id])
+  category       Category
+  title          String
+  description    String
+  brand          String?
+  model          String?
+  color          String?
+  estimatedValue Float?
+  stolenAt       DateTime
+  stolenLocation String
+  firNumber      String?
+  status         ItemStatus       @default(ACTIVE)
+  createdAt      DateTime         @default(now())
+  images         Image[]
+  identifiers    ItemIdentifier[]
+  verifications  VerificationLog[]
+  photoMatches   PhotoScanMatch[]
+}
+
+enum Category   { GOLD VEHICLE ELECTRONICS ACCESSORIES OTHER }
+enum ItemStatus { ACTIVE RECOVERED CLOSED }
+
+model ItemIdentifier {
+  id        String         @id @default(cuid())
+  itemId    String
+  item      StolenItem     @relation(fields: [itemId], references: [id])
+  type      IdentifierType
+  value     String
+  createdAt DateTime       @default(now())
+}
+
+enum IdentifierType { HALLMARK VIN IMEI SERIAL REGISTRATION OTHER }
+
+model Image {
+  id          String           @id @default(cuid())
+  itemId      String
+  item        StolenItem       @relation(fields: [itemId], references: [id])
+  url         String
+  embedding   Json?
+  isPrimary   Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  scanMatches PhotoScanMatch[]
+}
+
+model VerificationLog {
+  id              String      @id @default(cuid())
+  scannedById     String?
+  scannedBy       User?       @relation(fields: [scannedById], references: [id])
+  itemId          String?
+  item            StolenItem? @relation(fields: [itemId], references: [id])
+  imageSimilarity Float       @default(0)
+  idMatchScore    Float       @default(0)
+  metadataScore   Float       @default(0)
+  contextScore    Float       @default(0)
+  tps             Float
+  latitude        Float?
+  longitude       Float?
+  createdAt       DateTime    @default(now())
+}
+
+model PhotoScanAlert {
+  id                  String           @id @default(cuid())
+  scanImageUrl        String
+  scanEmbedding       Json
+  scanLatitude        Float?
+  scanLongitude       Float?
+  scanLocation        String?
+  scannedById         String?
+  scannedBy           User?            @relation("ScannedByAlerts", fields: [scannedById], references: [id])
+  scannedAt           DateTime         @default(now())
+  matches             PhotoScanMatch[]
+  alertStatus         PhotoAlertStatus @default(PENDING)
+  assignedOfficerId   String?
+  assignedOfficer     User?            @relation("OfficerAlerts", fields: [assignedOfficerId], references: [id])
+  officerNotifiedAt   DateTime?
+  officerAckedAt      DateTime?
+  resolvedAt          DateTime?
+  resolutionNotes     String?
+  topSimilarityScore  Float
+  overallTPS          Float
+  urgencyLevel        UrgencyLevel
+}
+
+enum PhotoAlertStatus {
+  PENDING
+  NOTIFIED
+  ACKNOWLEDGED
+  DISPATCHED
+  RESOLVED
+  FALSE_POSITIVE
+}
+
+enum UrgencyLevel { LOW MEDIUM HIGH }
+
+model PhotoScanMatch {
+  id               String         @id @default(cuid())
+  photoScanAlertId String
+  photoScanAlert   PhotoScanAlert @relation(fields: [photoScanAlertId], references: [id])
+  stolenItemId     String
+  stolenItem       StolenItem     @relation(fields: [stolenItemId], references: [id])
+  matchedImageId   String
+  matchedImage     Image          @relation(fields: [matchedImageId], references: [id])
+  similarityScore  Float
+  tps              Float
+  rank             Int
+  createdAt        DateTime       @default(now())
+}
